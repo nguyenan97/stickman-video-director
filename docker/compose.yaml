@@ -1,0 +1,19 @@
+services:
+  stickman:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        WITH_WHISPER: "1"
+    image: stickman-video-director:local
+    working_dir: /work
+    volumes:
+      # Studio rule: outputs live in AI-Video-Studio/ideas/<idea-id>/. Override with STICKMAN_WORK.
+      - ${STICKMAN_WORK:-../../AI-Video-Studio/ideas}:/work
+      - whisper-cache:/root/.cache/whisper
+    environment:
+      # Passed through from the host environment only; never write the key into this file.
+      - GEMINI_API_KEY
+
+volumes:
+  whisper-cache:

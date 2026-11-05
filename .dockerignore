@@ -1,0 +1,9 @@
+.git
+.worktrees
+**/node_modules
+**/__pycache__
+**/autopilot-work
+.env
+.env.*
+docs
+assets
