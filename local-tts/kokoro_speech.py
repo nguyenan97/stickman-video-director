@@ -55,6 +55,7 @@ def parse_args():
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="cpu keeps the GPU free for ComfyUI/ACE-Step")
     parser.add_argument("--loudnorm", type=float, metavar="LUFS", help="Also loudness-normalize to LUFS and resample to 48 kHz (ffmpeg)")
     parser.add_argument("--words", type=Path, help="Write Kokoro word timings JSON here (must not exist)")
+    parser.add_argument("--lexicon", type=Path, help='JSON {"entries": {"Word": "IPA"}}; whole-word, case-sensitive overrides')
     args = parser.parse_args()
 
     voice = {}
@@ -91,6 +92,18 @@ def main():
     lines = [line.strip() for line in args.text.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
     if not lines:
         raise SystemExit("Narration text is empty")
+    if any("](/" in line for line in lines):
+        raise SystemExit("Keep the script plain text; put pronunciations in --lexicon")
+    lexicon = {}
+    if args.lexicon:
+        lexicon = json.loads(args.lexicon.read_text(encoding="utf-8-sig")).get("entries", {})
+        if not lexicon or not all(isinstance(k, str) and isinstance(v, str) and v for k, v in lexicon.items()):
+            raise SystemExit("Lexicon needs non-empty string entries")
+        import re
+        pattern = re.compile(r"(?<![\w'])(" + "|".join(sorted(map(re.escape, lexicon), key=len, reverse=True)) + r")(?![\w'])")
+        spoken = [pattern.sub(lambda m: f"[{m.group(1)}](/{lexicon[m.group(1)]}/)", line) for line in lines]
+    else:
+        spoken = lines
 
     import numpy as np
     import soundfile as sf
@@ -105,7 +118,7 @@ def main():
     parts, words, cursor = [], [], 0.0
     pause = np.zeros(round(SAMPLE_RATE * args.pause), dtype=np.float32)
     with torch.inference_mode():
-        for index, line in enumerate(lines):
+        for index, line in enumerate(spoken):
             if index and len(pause):
                 parts.append(pause)
                 cursor += len(pause) / SAMPLE_RATE
@@ -155,6 +168,7 @@ def main():
         "text_file": str(args.text.resolve()),
         "text_sha256": sha256(args.text),
         "lines": len(lines),
+        "lexicon": {"path": str(args.lexicon.resolve()), "sha256": sha256(args.lexicon), "entries": len(lexicon)} if args.lexicon else None,
         "output": str(args.output),
         "sha256": sha256(args.output),
         "duration_seconds": round(info.duration, 3),

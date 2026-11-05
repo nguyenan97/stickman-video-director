@@ -23,6 +23,11 @@ Docker runtime stays unchanged: TTS runs on the host, render runs in the contain
 Without `--brand`, pass `--voice af_bella` (and optionally `--speed`, `--pause`,
 `--language en-US|en-GB`). English voices only; Kokoro has no Vietnamese voice.
 
+Pronunciation: pass `--lexicon lexicon.json` with `{"entries": {"Ms Tuyen": "mˈɪz twˈiən"}}`.
+Entries are whole-phrase, case-sensitive IPA overrides; the script stays plain text
+(inline `[word](/ipa/)` markup is rejected) and word timings keep the plain words.
+Use phrases ("Mr An") rather than bare words ("An") so articles are not changed.
+
 ## Behavior
 
 - Output: 24 kHz mono PCM16 WAV, or 48 kHz loudness-normalized with `--loudnorm`.
